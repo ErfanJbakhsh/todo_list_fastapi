@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated= 'auto')
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl='token')
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl='/auth/token')
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -49,8 +49,8 @@ def authenticate_user(username: str, password: str, db: db_dependency):
         return False
     return user
 
-def create_access_token(username: str, user_id: int, expires_delta: timedelta):
-    encode= {"sub": username, "id": user_id}
+def create_access_token(username: str, user_id: int, role: str, expires_delta: timedelta):
+    encode= {"sub": username, "id": user_id, "role": role}
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm= ALGORITHM)
@@ -60,9 +60,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         payload = jwt.decode(token, SECRET_KEY, algorithms= [ALGORITHM])
         username: str = payload.get('sub')
         user_id: int = payload.get('id')
-        if username is None or user_id is None:
+        user_role : str = payload.get('role')
+        if username is None or user_id is None or user_role is None:
             raise HTTPException(status_code= 401, detail= "Could not validate user")
-        return {'username': username, 'id': user_id}
+        return {'username': username, 'id': user_id, 'user_role': user_role}
     except JWTError:
         raise HTTPException(status_code= 401, detail= "Could not validate user")
 
@@ -72,7 +73,7 @@ async def get_users(db: db_dependency):
     return users
 
 @router.post("/auth")
-async def create_user(db: db_dependency,create_user_request: CreateUserRequest): 
+async def create_user(db: db_dependency, create_user_request: CreateUserRequest): 
     new_user = Users(
         email = create_user_request.email,
         username = create_user_request.username,
@@ -89,5 +90,5 @@ async def login_for_access_token(db: db_dependency, form_data: Annotated[OAuth2P
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user: 
         raise HTTPException(status_code= 401, detail= "Could not validate user")
-    token = create_access_token(user.username, user.id, timedelta(minutes=20))
-    return token
+    token = create_access_token(user.username, user.id, user.role, timedelta(minutes=20))
+    return {"access_token": token, "token_type": "bearer"}

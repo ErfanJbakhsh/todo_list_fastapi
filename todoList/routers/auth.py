@@ -67,12 +67,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     except JWTError:
         raise HTTPException(status_code= 401, detail= "Could not validate user")
 
-@router.get("/users")
-async def get_users(db: db_dependency):
-    users = db.query(Users).all()
-    return users
-
-@router.post("/auth")
+@router.post("/")
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest): 
     new_user = Users(
         email = create_user_request.email,

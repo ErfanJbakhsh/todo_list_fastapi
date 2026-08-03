@@ -26,6 +26,12 @@ async def get_todos_as_admin(user: user_dependency, db: db_dependency):
         raise HTTPException(status_code= 401, detail= 'Authentication failed')
     return db.query(models.Todos).all()
 
+@router.get("/users")
+async def get_all_users_as_admin(user: user_dependency, db: db_dependency):
+    if user is None or user.get("user_role") != "admin": 
+        raise HTTPException(status_code= 401, detail= 'Authentication failed')
+    return db.query(models.Users).all()
+
 @router.delete("/todos/{todo_id}")
 async def delete_todos_as_admin(user: user_dependency, todo_id: int, db: db_dependency):
     if user is None or user.get("user_role") != "admin": 
@@ -35,3 +41,13 @@ async def delete_todos_as_admin(user: user_dependency, todo_id: int, db: db_depe
         raise HTTPException(status_code=404, detail='Todo not found')
     db.query(models.Todos).filter(models.Todos.id == todo_id).delete()
     db.commit()
+
+@router.delete("/todos/{user_id}")
+async def delete_todos_as_admin(user: user_dependency, user_id: int, db: db_dependency):
+    if user is None or user.get("user_role") != "admin": 
+        raise HTTPException(status_code= 401, detail= 'Authentication failed')
+    chosen_user = db.query(models.Users).filter(models.Todos.id == user_id).first()
+    if chosen_user is None: 
+        raise HTTPException(status_code=404, detail='Todo not found')
+    db.query(models.Todos).filter(models.Todos.id == user_id).delete()
+    db.commit()   
